@@ -141,7 +141,10 @@ elif [ -f usr/share/pixmaps/cursor.png ]; then
 fi
 
 if [ -n "$ICON_SRC" ]; then
-    cp "$ICON_SRC" usr/share/icons/hicolor/256x256/apps/cursor.png
+    # Only copy if source and destination are not the same
+    if [ "$ICON_SRC" != "usr/share/icons/hicolor/256x256/apps/cursor.png" ]; then
+        cp "$ICON_SRC" usr/share/icons/hicolor/256x256/apps/cursor.png
+    fi
     cp "$ICON_SRC" usr/share/pixmaps/cursor.png
 fi
 
