@@ -75,7 +75,7 @@ if [ ! -f usr/share/applications/cursor.desktop ]; then
 Name=Cursor
 Comment=The AI-first code editor
 GenericName=Text Editor
-Exec=/usr/bin/cursor %F
+Exec=env ELECTRON_IS_DEV=0 /usr/bin/cursor --no-sandbox %F
 Icon=cursor
 Type=Application
 StartupNotify=true
@@ -88,7 +88,7 @@ Terminal=false
 
 [Desktop Action new-empty-window]
 Name=New Empty Window
-Exec=/usr/bin/cursor --new-window %F
+Exec=env ELECTRON_IS_DEV=0 /usr/bin/cursor --no-sandbox --new-window %F
 Icon=cursor
 EOF
 fi
@@ -126,32 +126,47 @@ if [ -z "$CURSOR_EXEC" ]; then
     CURSOR_EXEC=$(find usr/ -name "*cursor*" -type f -executable | head -1)
 fi
 
-if [ -n "$CURSOR_EXEC" ]; then
-    echo "Found Cursor executable: $CURSOR_EXEC"
-    # Create relative symlink
-    RELATIVE_PATH=$(echo "$CURSOR_EXEC" | sed 's|^usr/||')
-    ln -sf "../$RELATIVE_PATH" usr/bin/cursor
-    echo "Created symlink: usr/bin/cursor -> ../$RELATIVE_PATH"
-else
-    echo "WARNING: Could not find Cursor executable!"
-    # Create a robust wrapper script instead
-    cat > usr/bin/cursor << 'EOF'
+# Always create a robust wrapper script instead of symlink
+# This ensures proper handling of --no-sandbox and other flags
+cat > usr/bin/cursor << 'EOF'
 #!/bin/bash
-# Avoid recursion if this is the wrapper
-if [[ "$0" == "/usr/bin/cursor" ]]; then
-    REAL_CURSOR=$(find /usr/share/cursor -type f -name "cursor" -executable | head -1)
-    if [ -n "$REAL_CURSOR" ]; then
-        exec "$REAL_CURSOR" --no-sandbox "$@"
-    else
-        echo "Error: Cursor executable not found"
-        exit 1
+
+# Set environment variables for Electron apps
+export ELECTRON_IS_DEV=0
+export ELECTRON_DISABLE_SECURITY_WARNINGS=true
+
+# Find the real Cursor executable
+REAL_CURSOR=""
+
+# First try common locations
+for path in "/usr/share/cursor/cursor" "/usr/lib/cursor/cursor" "/opt/cursor/cursor"; do
+    if [ -x "$path" ]; then
+        REAL_CURSOR="$path"
+        break
     fi
+done
+
+# If not found, search for it
+if [ -z "$REAL_CURSOR" ]; then
+    REAL_CURSOR=$(find /usr/share /usr/lib /opt -type f -name "cursor" -executable 2>/dev/null | head -1)
+fi
+
+# If still not found, try to find any cursor binary
+if [ -z "$REAL_CURSOR" ]; then
+    REAL_CURSOR=$(find /usr -type f -name "*cursor*" -executable 2>/dev/null | grep -v "/usr/bin/cursor" | head -1)
+fi
+
+if [ -n "$REAL_CURSOR" ]; then
+    # Always use --no-sandbox for GUI launches
+    exec "$REAL_CURSOR" --no-sandbox "$@"
 else
-    exec cursor "$@"
+    echo "Error: Cursor executable not found in system" >&2
+    echo "Please check if Cursor is properly installed" >&2
+    exit 1
 fi
 EOF
-    chmod +x usr/bin/cursor
-fi
+chmod +x usr/bin/cursor
+echo "Created wrapper script: usr/bin/cursor"
 
 # Create control file
 cat > DEBIAN/control << EOF
@@ -160,7 +175,7 @@ Version: ${CLEAN_VERSION}
 Section: editors
 Priority: optional
 Architecture: amd64
-Depends: libc6, libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libdrm2, libxcomposite1, libxdamage1, libxrandr2, libgbm1, libxkbcommon0, libasound2
+Depends: libc6, libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libdrm2, libxcomposite1, libxdamage1, libxrandr2, libgbm1, libxkbcommon0, libasound2, libgconf-2-4, libxfixes3, libxinerama1, libxcursor1, libxi6
 Maintainer: Cursor Team <support@cursor.sh>
 Homepage: https://cursor.sh
 Description: The AI-first code editor
