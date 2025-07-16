@@ -1,0 +1,14 @@
+# Ignore build artifacts
+*.deb
+build/
+output/
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore logs
+*.log
+
+# Ignore node_modules if any
+node_modules/ 
