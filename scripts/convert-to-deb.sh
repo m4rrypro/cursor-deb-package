@@ -51,11 +51,65 @@ mkdir -p usr/share/applications
 mkdir -p usr/share/icons/hicolor/256x256/apps
 mkdir -p usr/share/pixmaps
 
-# Move extracted files
-mv squashfs-root/* usr/
+# Move extracted files (fix double usr issue)
+echo "=== Checking AppImage structure ==="
+ls -la squashfs-root/
+
+if [ -d "squashfs-root/usr" ]; then
+    echo "Found nested usr directory, merging properly..."
+    # Copy contents of squashfs-root/usr to our usr directory
+    cp -r squashfs-root/usr/* usr/
+    
+    # Copy any root-level files (like AppRun) to usr/
+    find squashfs-root/ -maxdepth 1 -type f -exec cp {} usr/ \;
+    
+    # Copy any other directories at root level
+    find squashfs-root/ -maxdepth 1 -type d ! -name "usr" ! -name "squashfs-root" -exec cp -r {} usr/ \;
+else
+    echo "No nested usr directory, moving all files..."
+    mv squashfs-root/* usr/
+fi
+
+echo "=== Final usr structure ==="
+ls -la usr/
 
 # Create symlink in /usr/bin
-ln -sf ../share/cursor/cursor usr/bin/cursor
+# Find the actual Cursor executable
+echo "=== Looking for Cursor executable ==="
+CURSOR_EXEC=$(find usr/ -name "cursor" -type f -executable | head -1)
+
+if [ -z "$CURSOR_EXEC" ]; then
+    echo "Looking for alternative cursor executables..."
+    CURSOR_EXEC=$(find usr/ -path "*/bin/cursor" -type f | head -1)
+fi
+
+if [ -z "$CURSOR_EXEC" ]; then
+    echo "Looking for any cursor binary..."
+    CURSOR_EXEC=$(find usr/ -name "*cursor*" -type f -executable | head -1)
+fi
+
+if [ -n "$CURSOR_EXEC" ]; then
+    echo "Found Cursor executable: $CURSOR_EXEC"
+    # Create relative symlink
+    RELATIVE_PATH=$(echo "$CURSOR_EXEC" | sed 's|^usr/||')
+    ln -sf "../$RELATIVE_PATH" usr/bin/cursor
+    echo "Created symlink: usr/bin/cursor -> ../$RELATIVE_PATH"
+else
+    echo "WARNING: Could not find Cursor executable!"
+    # Create a wrapper script instead
+    cat > usr/bin/cursor << 'EOF'
+#!/bin/bash
+# Find and execute cursor
+CURSOR_PATH=$(find /usr -name "cursor" -type f -executable | head -1)
+if [ -n "$CURSOR_PATH" ]; then
+    exec "$CURSOR_PATH" --no-sandbox "$@"
+else
+    echo "Error: Cursor executable not found"
+    exit 1
+fi
+EOF
+    chmod +x usr/bin/cursor
+fi
 
 # Copy desktop file
 if [ -f usr/share/applications/cursor.desktop ]; then
