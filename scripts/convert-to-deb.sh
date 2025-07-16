@@ -57,14 +57,8 @@ ls -la squashfs-root/
 
 if [ -d "squashfs-root/usr" ]; then
     echo "Found nested usr directory, merging properly..."
-    # Copy contents of squashfs-root/usr to our usr directory
+    # Only copy contents of squashfs-root/usr into our usr directory
     cp -r squashfs-root/usr/* usr/
-    
-    # Copy any root-level files (like AppRun) to usr/
-    find squashfs-root/ -maxdepth 1 -type f -exec cp {} usr/ \;
-    
-    # Copy any other directories at root level
-    find squashfs-root/ -maxdepth 1 -type d ! -name "usr" ! -name "squashfs-root" -exec cp -r {} usr/ \;
 else
     echo "No nested usr directory, moving all files..."
     mv squashfs-root/* usr/
@@ -136,13 +130,19 @@ Icon=cursor
 EOF
 fi
 
-# Copy icon
-if [ -f usr/share/pixmaps/cursor.png ]; then
-    cp usr/share/pixmaps/cursor.png usr/share/icons/hicolor/256x256/apps/
-    cp usr/share/pixmaps/cursor.png usr/share/pixmaps/
+# Use the official Cursor icon from the AppImage if available
+ICON_SRC=""
+if [ -f usr/share/icons/hicolor/256x256/apps/cursor.png ]; then
+    ICON_SRC="usr/share/icons/hicolor/256x256/apps/cursor.png"
 elif [ -f usr/cursor.png ]; then
-    cp usr/cursor.png usr/share/icons/hicolor/256x256/apps/cursor.png
-    cp usr/cursor.png usr/share/pixmaps/cursor.png
+    ICON_SRC="usr/cursor.png"
+elif [ -f usr/share/pixmaps/cursor.png ]; then
+    ICON_SRC="usr/share/pixmaps/cursor.png"
+fi
+
+if [ -n "$ICON_SRC" ]; then
+    cp "$ICON_SRC" usr/share/icons/hicolor/256x256/apps/cursor.png
+    cp "$ICON_SRC" usr/share/pixmaps/cursor.png
 fi
 
 # Create control file
