@@ -111,10 +111,8 @@ EOF
     chmod +x usr/bin/cursor
 fi
 
-# Copy desktop file
-if [ -f usr/share/applications/cursor.desktop ]; then
-    cp usr/share/applications/cursor.desktop usr/share/applications/
-else
+# Copy desktop file if not already in place
+if [ ! -f usr/share/applications/cursor.desktop ]; then
     # Create desktop file if it doesn't exist
     cat > usr/share/applications/cursor.desktop << EOF
 [Desktop Entry]
