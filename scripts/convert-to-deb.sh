@@ -67,6 +67,50 @@ fi
 echo "=== Final usr structure ==="
 ls -la usr/
 
+# Copy desktop file if not already in place
+if [ ! -f usr/share/applications/cursor.desktop ]; then
+    # Create desktop file if it doesn't exist
+    cat > usr/share/applications/cursor.desktop << EOF
+[Desktop Entry]
+Name=Cursor
+Comment=The AI-first code editor
+GenericName=Text Editor
+Exec=/usr/bin/cursor %F
+Icon=cursor
+Type=Application
+StartupNotify=true
+StartupWMClass=Cursor
+Categories=Utility;TextEditor;Development;IDE;
+MimeType=text/plain;inode/directory;
+Actions=new-empty-window;
+Keywords=cursor;editor;ai;
+Terminal=false
+
+[Desktop Action new-empty-window]
+Name=New Empty Window
+Exec=/usr/bin/cursor --new-window %F
+Icon=cursor
+EOF
+fi
+
+# Use the official Cursor icon from the AppImage if available
+ICON_SRC=""
+if [ -f usr/share/icons/hicolor/256x256/apps/cursor.png ]; then
+    ICON_SRC="usr/share/icons/hicolor/256x256/apps/cursor.png"
+elif [ -f usr/cursor.png ]; then
+    ICON_SRC="usr/cursor.png"
+elif [ -f usr/share/pixmaps/cursor.png ]; then
+    ICON_SRC="usr/share/pixmaps/cursor.png"
+fi
+
+if [ -n "$ICON_SRC" ]; then
+    # Only copy if source and destination are not the same
+    if [ "$ICON_SRC" != "usr/share/icons/hicolor/256x256/apps/cursor.png" ]; then
+        cp "$ICON_SRC" usr/share/icons/hicolor/256x256/apps/cursor.png
+    fi
+    cp "$ICON_SRC" usr/share/pixmaps/cursor.png
+fi
+
 # Create symlink in /usr/bin
 # Find the actual Cursor executable
 echo "=== Looking for Cursor executable ==="
@@ -90,62 +134,23 @@ if [ -n "$CURSOR_EXEC" ]; then
     echo "Created symlink: usr/bin/cursor -> ../$RELATIVE_PATH"
 else
     echo "WARNING: Could not find Cursor executable!"
-    # Create a wrapper script instead
+    # Create a robust wrapper script instead
     cat > usr/bin/cursor << 'EOF'
 #!/bin/bash
-# Find and execute cursor
-CURSOR_PATH=$(find /usr -name "cursor" -type f -executable | head -1)
-if [ -n "$CURSOR_PATH" ]; then
-    exec "$CURSOR_PATH" --no-sandbox "$@"
+# Avoid recursion if this is the wrapper
+if [[ "$0" == "/usr/bin/cursor" ]]; then
+    REAL_CURSOR=$(find /usr/share/cursor -type f -name "cursor" -executable | head -1)
+    if [ -n "$REAL_CURSOR" ]; then
+        exec "$REAL_CURSOR" --no-sandbox "$@"
+    else
+        echo "Error: Cursor executable not found"
+        exit 1
+    fi
 else
-    echo "Error: Cursor executable not found"
-    exit 1
+    exec cursor "$@"
 fi
 EOF
     chmod +x usr/bin/cursor
-fi
-
-# Copy desktop file if not already in place
-if [ ! -f usr/share/applications/cursor.desktop ]; then
-    # Create desktop file if it doesn't exist
-    cat > usr/share/applications/cursor.desktop << EOF
-[Desktop Entry]
-Name=Cursor
-Comment=The AI-first code editor
-GenericName=Text Editor
-Exec=cursor %F
-Icon=cursor
-Type=Application
-StartupNotify=true
-StartupWMClass=Cursor
-Categories=Utility;TextEditor;Development;IDE;
-MimeType=text/plain;inode/directory;
-Actions=new-empty-window;
-Keywords=cursor;editor;ai;
-
-[Desktop Action new-empty-window]
-Name=New Empty Window
-Exec=cursor --new-window %F
-Icon=cursor
-EOF
-fi
-
-# Use the official Cursor icon from the AppImage if available
-ICON_SRC=""
-if [ -f usr/share/icons/hicolor/256x256/apps/cursor.png ]; then
-    ICON_SRC="usr/share/icons/hicolor/256x256/apps/cursor.png"
-elif [ -f usr/cursor.png ]; then
-    ICON_SRC="usr/cursor.png"
-elif [ -f usr/share/pixmaps/cursor.png ]; then
-    ICON_SRC="usr/share/pixmaps/cursor.png"
-fi
-
-if [ -n "$ICON_SRC" ]; then
-    # Only copy if source and destination are not the same
-    if [ "$ICON_SRC" != "usr/share/icons/hicolor/256x256/apps/cursor.png" ]; then
-        cp "$ICON_SRC" usr/share/icons/hicolor/256x256/apps/cursor.png
-    fi
-    cp "$ICON_SRC" usr/share/pixmaps/cursor.png
 fi
 
 # Create control file
