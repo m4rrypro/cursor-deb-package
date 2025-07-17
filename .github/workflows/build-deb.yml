@@ -26,23 +26,45 @@ jobs:
       - name: Check for new Cursor version
         id: version-check
         run: |
-          # Use Cursor API to get the latest version info
+          # Try multiple methods to get Cursor version
+          LATEST_VERSION=""
+          
+          # Method 1: Try the API (may return HTML instead of JSON)
+          echo "Trying Cursor API..."
           API_URL="https://www.cursor.com/api/download?platform=linux-x64&releaseTrack=stable"
           USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
           
-          # Try to get version from API
-          LATEST_VERSION=$(curl -sL -A "$USER_AGENT" "$API_URL" | jq -r '.version // empty')
+          API_RESPONSE=$(curl -sL -A "$USER_AGENT" "$API_URL" 2>/dev/null || echo "")
           
-          # If API doesn't provide version, fall back to date-based versioning
+          # Check if response looks like JSON
+          if echo "$API_RESPONSE" | jq empty 2>/dev/null; then
+            LATEST_VERSION=$(echo "$API_RESPONSE" | jq -r '.version // empty' 2>/dev/null || echo "")
+            echo "Got version from API: $LATEST_VERSION"
+          else
+            echo "API returned non-JSON response, trying alternative methods..."
+          fi
+          
+          # Method 2: Try to get version from download page
+          if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
+            echo "Trying to extract version from download page..."
+            VERSION_FROM_PAGE=$(curl -sL "https://cursor.com/" | grep -oE 'cursor-[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/cursor-//' || echo "")
+            if [ -n "$VERSION_FROM_PAGE" ]; then
+              LATEST_VERSION="$VERSION_FROM_PAGE"
+              echo "Got version from page: $LATEST_VERSION"
+            fi
+          fi
+          
+          # Method 3: Fall back to date-based versioning
           if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
             TIMESTAMP=$(date +"%Y%m%d")
             LATEST_VERSION="1.0.${TIMESTAMP}"
+            echo "Using date-based version: $LATEST_VERSION"
           fi
           
-          echo "Latest version: $LATEST_VERSION"
+          echo "Final latest version: $LATEST_VERSION"
           
           # Get current version from our releases (if any)
-          CURRENT_VERSION=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.tag_name // "none"')
+          CURRENT_VERSION=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.tag_name // "none"' 2>/dev/null || echo "none")
           echo "Current version: $CURRENT_VERSION"
           
           # Build if:
