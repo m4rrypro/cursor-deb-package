@@ -302,4 +302,4 @@ This README will help your repository rank high for searches like:
 - "cursor appimage to deb"
 - "cursor debian package"
 - "cursor ubuntu install"
-- "cursor linux deb" 
+- "cursor linux deb" # Trigger build Thu Jul 17 08:37:36 UTC 2025
