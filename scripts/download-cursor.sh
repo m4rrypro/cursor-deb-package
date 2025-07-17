@@ -21,10 +21,34 @@ API_URL="https://www.cursor.com/api/download?platform=linux-x64&releaseTrack=sta
 USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
 # Get the actual download URL from the API
-DOWNLOAD_URL=$(curl -sL -A "$USER_AGENT" "$API_URL" | jq -r '.url // .downloadUrl')
+echo -e "${YELLOW}Checking API response format...${NC}"
+API_RESPONSE=$(curl -sL -A "$USER_AGENT" "$API_URL" 2>/dev/null || echo "")
+
+# Check if response is valid JSON
+if echo "$API_RESPONSE" | jq empty 2>/dev/null; then
+    echo -e "${GREEN}API returned valid JSON${NC}"
+    DOWNLOAD_URL=$(echo "$API_RESPONSE" | jq -r '.url // .downloadUrl // empty' 2>/dev/null || echo "")
+else
+    echo -e "${YELLOW}API returned non-JSON response, trying alternative method...${NC}"
+    DOWNLOAD_URL=""
+fi
+
+# If API failed, try to get download URL from the main page
+if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
+    echo -e "${YELLOW}Trying to find download URL from cursor.com...${NC}"
+    # Try to extract download URL from the main page
+    DOWNLOAD_URL=$(curl -sL "https://cursor.com/" | grep -oE 'https://[^"]*cursor[^"]*\.AppImage' | head -1 || echo "")
+    
+    if [ -z "$DOWNLOAD_URL" ]; then
+        # Fallback to a known pattern (this might need updating)
+        echo -e "${YELLOW}Using fallback download URL pattern...${NC}"
+        DOWNLOAD_URL="https://downloader.cursor.sh/linux/appImage/x64"
+    fi
+fi
 
 if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
-    echo -e "${RED}Error: Could not get download URL from Cursor API${NC}"
+    echo -e "${RED}Error: Could not get download URL from any source${NC}"
+    echo -e "${RED}Please check if cursor.com is accessible${NC}"
     exit 1
 fi
 
@@ -51,8 +75,12 @@ echo -e "${GREEN}Download completed: downloads/$FILENAME${NC}"
 # Try to extract version information
 echo -e "${YELLOW}Extracting version information...${NC}"
 
-# First try to get version from API response
-VERSION=$(curl -sL -A "$USER_AGENT" "$API_URL" | jq -r '.version // empty')
+# First try to get version from API response (if we got valid JSON earlier)
+if echo "$API_RESPONSE" | jq empty 2>/dev/null; then
+    VERSION=$(echo "$API_RESPONSE" | jq -r '.version // empty' 2>/dev/null || echo "")
+else
+    VERSION=""
+fi
 
 if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
     # Try to extract from filename
