@@ -175,7 +175,7 @@ Version: ${CLEAN_VERSION}
 Section: editors
 Priority: optional
 Architecture: amd64
-Depends: libc6, libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libdrm2, libxcomposite1, libxdamage1, libxrandr2, libgbm1, libxkbcommon0, libasound2, libgconf-2-4, libxfixes3, libxinerama1, libxcursor1, libxi6
+Depends: libc6, libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libdrm2, libxcomposite1, libxdamage1, libxrandr2, libgbm1, libxkbcommon0, libasound2, libxfixes3, libxinerama1, libxcursor1, libxi6
 Maintainer: Cursor Team <support@cursor.sh>
 Homepage: https://cursor.sh
 Description: The AI-first code editor
