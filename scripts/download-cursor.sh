@@ -42,7 +42,7 @@ if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
     if [ -z "$DOWNLOAD_URL" ]; then
         # Fallback to a known pattern (this might need updating)
         echo -e "${YELLOW}Using fallback download URL pattern...${NC}"
-        DOWNLOAD_URL="https://downloader.cursor.sh/linux/appImage/x64"
+        DOWNLOAD_URL="https://cursor.sh/linux/appImage/x64"
     fi
 fi
 
